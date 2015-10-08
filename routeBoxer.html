@@ -1,0 +1,229 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+    <title>Google Maps JavaScript API Search Along a Route Example</title>
+    <script src="https://maps.googleapis.com/maps/api/js?sensor=false&libraries=places,visualization&v=3.exp"></script>
+    
+    <script type="text/javascript" src="http://google-maps-utility-library-v3.googlecode.com/svn/trunk/routeboxer/src/RouteBoxer.js"></script>
+
+    <script type="text/javascript">
+
+    
+    var map = null;
+    var boxpolys = null;
+    var directions = null;
+    var routeBoxer = null;
+    var distance = null; // km
+    var searchName = null;
+    var searchType = null;
+    var searchKeyword = null;
+    var markersArray = null;
+    var markersArray = [];
+    var infoWindow;
+    var service;
+    var resultsTotal;
+    var markerTitle;
+    
+    function initialize() {
+      // Default the map view to the continental U.S.
+      var mapOptions = {
+        center: new google.maps.LatLng(37.09024, -95.712891),
+        mapTypeId: google.maps.MapTypeId.ROADMAP,
+        zoom: 4
+      };
+      
+      map = new google.maps.Map(document.getElementById("map"), mapOptions);
+      routeBoxer = new RouteBoxer();
+      
+      directionService = new google.maps.DirectionsService();
+      directionsRenderer = new google.maps.DirectionsRenderer({ map: map }); 
+
+      infoWindow = new google.maps.InfoWindow();
+      service = new google.maps.places.PlacesService(map);
+
+    }
+    
+    function route() {
+      // Clear any previous route boxes from the map
+      clearBoxes();
+
+      // Convert the distance to box around the route from miles to km
+      distance = parseFloat(document.getElementById("distance").value) * 1.609344;
+      
+      var request = {
+        origin: document.getElementById("from").value,
+        destination: document.getElementById("to").value,
+        travelMode: google.maps.DirectionsTravelMode.DRIVING
+      }
+      
+      // Make the directions request
+      directionService.route(request, function(result, status) {
+        if (status == google.maps.DirectionsStatus.OK) {
+          directionsRenderer.setDirections(result);
+          
+          // Box around the overview path of the first route
+          var path = result.routes[0].overview_path;
+          var boxes = routeBoxer.box(path, distance);
+          drawBoxes(boxes);
+        } else {
+          alert("Directions query failed: " + status);
+        }
+      });
+    }
+    
+    // Draw the array of boxes as polylines on the map
+    function drawBoxes(boxes) {
+      boxpolys = new Array(boxes.length);
+      /* for (var i = 0; i < boxes.length; i++) {
+        boxpolys[i] = new google.maps.Rectangle({
+          bounds: boxes[i],
+          fillOpacity: 0,
+          strokeOpacity: 1.0,
+          strokeColor: '#000000',
+          strokeWeight: 1,
+          map: map
+        });
+      } */
+
+      searchName = document.getElementById("searchName").value; 
+      searchType = document.getElementById("searchType").value;
+      searchKeyword = document.getElementById("searchKeyword").value;
+      //console.log('searchName ' + searchName);
+      //console.log('searchType ' + searchType);
+      //console.log('searchKeyword ' + searchKeyword);
+      
+      if (searchName == "" && searchType == "" && searchKeyword == "") {
+        alert('Please enter some search information to find locations along the route.');
+        boxpolys = null;
+      } else {
+        for (var i = 0; i < boxes.length; i++) {
+          boxpolys[i] = new google.maps.Rectangle({
+            bounds: boxes[i],
+            fillOpacity: 0,
+            strokeOpacity: 1.0,
+            strokeColor: '#000000',
+            strokeWeight: 1,
+            name: searchName,
+            type: searchType,
+            keyword: searchKeyword,
+            map: map
+          });
+          service.radarSearch(boxpolys[i], callback);
+        }
+      }
+    }
+    
+    // Clear boxes currently on the map
+    function clearBoxes() {
+      if (boxpolys != null) {
+        for (var i = 0; i < boxpolys.length; i++) {
+          boxpolys[i].setMap(null);
+        }
+      }
+      boxpolys = null;
+      clearOverlays()
+    }
+
+    /* Places Code Start ********************/
+    function callback(results, status) {
+      /* if (status != google.maps.places.PlacesServiceStatus.OK) {
+        alert('Places status is ' + status);
+        return;
+      } */
+      for (var i = 0, result; result = results[i]; i++) {
+        //console.log(result.geometry.location);
+        createMarker(result);
+      }
+    }
+
+  function createMarker(place) {
+      //console.log( place );
+      //console.log( place.geometry.location.jb );
+      //console.log( place.geometry.location.kb ); 
+
+      /* geocoder = new google.maps.Geocoder();
+      var latlng = new google.maps.LatLng(place.geometry.location.jb, place.geometry.location.kb);
+      geocoder.geocode({'latLng': latlng}, function(results, status) {
+        if (status == google.maps.GeocoderStatus.OK) {
+          if (results[1]) {
+            
+            console.log( result[1].name );
+            
+          } else {
+            alert('No results found');
+          }
+        } else {
+          alert('Geocoder failed due to: ' + status);
+        }
+      }); */
+
+      var marker = new google.maps.Marker({
+        map: map,
+        position: place.geometry.location,
+        //title: place.name,
+        icon: {
+          // Star
+          path: 'M 0,-24 6,-7 24,-7 10,4 15,21 0,11 -15,21 -10,4 -24,-7 -6,-7 z',
+          fillColor: '#ffff00',
+          fillOpacity: 1,
+          scale: 1/4,
+          strokeColor: '#bd8d2c',
+          strokeWeight: 1
+        }
+    });
+
+    //markerTitle = marker.getTitle();
+    //console.log( marker.getPosition().lat() ); 
+    //console.log( marker.getPosition().lng(); ); 
+    //console.log( marker.getPosition() );  
+
+    markersArray.push(marker);
+
+    google.maps.event.addListener(marker, 'click', function() {
+      service.getDetails(place, function(result, status) {
+        if (status != google.maps.places.PlacesServiceStatus.OK) {
+          alert('Places status 2 is' + status);
+          return;
+        }
+        var contentString = "<div class='infoWindowWrap'>" + result.name + "<br />" + result.formatted_address + "<br />" + result.formatted_phone_number + "</div>";
+
+        infoWindow.setContent(contentString);
+        infoWindow.open(map, marker);
+      });
+    });
+    resultsTotal = markersArray.length;
+    document.getElementById('resultsTotal').innerHTML = resultsTotal;
+  }
+
+  function clearOverlays() {
+    for (var i = 0; i < markersArray.length; i++ ) {
+      markersArray[i].setMap(null);
+    }
+    markersArray = [];
+  }
+
+
+  </script>
+  <style>
+    #map {
+      border: 1px solid black;
+    }
+    .infoWindowWrap {
+      height: 100px;
+    }
+  </style>
+  </head>
+  <body onload="initialize();">
+    Box within at least <input type="text" id="distance" value="30" size="2">miles of the route from <input type="text" id="from" value="denver"/>
+    to <input type="text" id="to" value="dallas"/><br />
+    Search along route: Name: <input type="text" id="searchName" value=""/> 
+    Type: <input type="text" id="searchType" value="Gas Station"/>
+    Keyword: <input type="text" id="searchKeyword" value="Diesel"/>
+    <input type="submit" onclick="route()"/><br />
+    Total Number of results is <span id="resultsTotal">0</span>
+    <div id="map" style="width: 800px; height: 600px;"></div>
+
+  </body>
+</html>

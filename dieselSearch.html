@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Place searches</title>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+    <meta charset="utf-8">
+    <link href="https://developers.google.com//maps/documentation/javascript/examples/default.css" rel="stylesheet">
+    <script src="http://maps.google.com/maps?file=api&amp;v=3.x&amp;key=AIzaSyD65djvLlfTyGnGhXvaD4MyuIEQWSy3IW0" type="text/javascript"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?sensor=false&libraries=places,visualization&v=3.exp"></script>
+
+    <script>
+      var map;
+      var infoWindow;
+      var geocoder = null;
+      var address = null;
+      var distanceRadius = null;
+      var markersArray = [];
+      var service;
+
+      function initialize() {
+        var dieselMap = new google.maps.LatLng(37.09024, -95.712891);
+
+        map = new google.maps.Map(document.getElementById('map-canvas'), {
+          mapTypeId: google.maps.MapTypeId.ROADMAP,
+          center: dieselMap,
+          zoom: 4
+        });
+
+        infoWindow = new google.maps.InfoWindow();
+        service = new google.maps.places.PlacesService(map);
+      }
+
+      function searchDiesel() {
+        clearOverlays();
+
+        address = document.getElementById('address').value;
+
+        // Convert the distance to box around the route from miles to km
+        distanceRadius = parseFloat(document.getElementById("distanceRadius").value) * 1609.344;
+
+        geocoder = new google.maps.Geocoder();
+
+        geocoder.geocode( { 'address': address}, function(results, status) {
+          if (status == google.maps.GeocoderStatus.OK) {
+            
+            map.setCenter(results[0].geometry.location);
+            
+            var mapLocaitonLat = results[0].geometry.location.jb;
+            var mapLocaitonLong = results[0].geometry.location.kb;
+
+            var dieselMap = new google.maps.LatLng(mapLocaitonLat, mapLocaitonLong);
+
+            map = new google.maps.Map(document.getElementById('map-canvas'), {
+              mapTypeId: google.maps.MapTypeId.ROADMAP,
+              center: dieselMap,
+              zoom: 10
+            });
+
+            var request = {
+              location: dieselMap,
+              radius: distanceRadius,
+              type: 'Gas Station',
+              keyword: 'Diesel'
+            };
+
+            infowindow = new google.maps.InfoWindow();
+            var service = new google.maps.places.PlacesService(map);
+            service.nearbySearch(request, callback);
+
+            geocoder = new GClientGeocoder();
+
+            map.setCenter(results[0].geometry.location);
+            var marker = new google.maps.Marker({
+                map: map,
+                position: results[0].geometry.location,
+                icon: {
+                // Star
+                path: 'M 0,-24 6,-7 24,-7 10,4 15,21 0,11 -15,21 -10,4 -24,-7 -6,-7 z',
+                fillColor: '#ffff00',
+                fillOpacity: 1,
+                scale: 1/4,
+                strokeColor: '#bd8d2c',
+                strokeWeight: 1
+              }
+            });
+            
+          } else {
+            alert('Geocode was not successful for the following reason: ' + status);
+          }
+        });
+
+      }
+
+      function callback(results, status) {
+        if (status == google.maps.places.PlacesServiceStatus.OK) {
+          for (var i = 0; i < results.length; i++) {
+            createMarker(results[i]);
+          }
+        }
+      }
+
+      function createMarker(place) {
+        var placeLoc = place.geometry.location;
+        var marker = new google.maps.Marker({
+          map: map,
+          position: place.geometry.location
+        });
+
+        // Zoom All Markers
+        markersArray.push(marker);
+        var bound = new google.maps.LatLngBounds();
+        for(var i in markersArray)
+        {
+          bound.extend(markersArray[i].getPosition());
+        }
+        map.fitBounds(bound);
+
+        google.maps.event.addListener(marker, 'click', function() {
+            service.getDetails(place, function(result, status) {
+              if (status != google.maps.places.PlacesServiceStatus.OK) {
+                alert('Places status 2 is' + status);
+                return;
+              }
+              var contentString = "<div class='infoWindowWrap'>" + result.name + "<br />" + result.formatted_address + "<br />" + result.formatted_phone_number + "</div>";
+
+              infoWindow.setContent(contentString);
+              infoWindow.open(map, marker);
+            });
+          });
+          resultsTotal = markersArray.length;
+          document.getElementById('resultsTotal').innerHTML = resultsTotal;
+      }
+
+      function clearOverlays() {
+        for (var i = 0; i < markersArray.length; i++ ) {
+          markersArray[i].setMap(null);
+        }
+        markersArray = [];
+      }
+
+      google.maps.event.addDomListener(window, 'load', initialize);
+    </script>
+
+    <style>
+        #map-canvas {
+          border: 1px solid black;
+          margin: 10px 10px 10px 10px;
+        }
+        .infoWindowWrap {
+          height: 100px;
+        }
+    </style>
+
+  </head>
+  <body>
+    <div style="width:200px; float:left; margin:10px 10px 10px 10px;">Address: <input type="text" id="address" value="Summit, NJ"/><br />
+
+    Distance: <input type="text" id="distanceRadius" value="20"/><br /><br />
+
+    <input type="submit" value="Search Diesel" onclick="searchDiesel()"/><br /><br />
+
+    <div style="float:left;">Total Results:&nbsp</div> <div id="resultsTotal"></div>
+    </div>
+
+    <div id="map-canvas" style="width:640px; height:480px; float:left"></div>
+      <!-- <pre>
+var request = {
+  location: new google.maps.LatLng(-33.8665433, 151.1956316),
+  radius: 500,
+  types: ['store']
+};
+      </pre> -->
+  </body>
+</html>
